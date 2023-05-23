@@ -388,7 +388,7 @@ impl Conversation {
                     .semantic
                     .as_ref()
                     .context("semantic search is not enabled")?
-                    .search(&nl_query, 20, 0)
+                    .search(&nl_query, 10, 0)
                     .await?
                     .into_iter()
                     .map(|v| {
@@ -447,7 +447,6 @@ impl Conversation {
             .clone()
             .provider(llm_gateway::api::Provider::AzureOpenAi)
             .model(Some("gpt-4-32k".to_string()))
-            .max_tokens(Some(1000))
             .chat(&self.trimmed_history()?)
             .await?
             .try_collect::<String>()
@@ -594,7 +593,7 @@ impl Conversation {
                     .into_iter()
                     .filter(|r| r.start > 0 && r.end > 0)
                     .map(|mut r| {
-                        r.end = r.end.min(r.start + 60); // Cap relevant chunk size by line number
+                        r.end = r.end.min(r.start + 20); // Cap relevant chunk size by line number
                         r
                     })
                     .collect();
@@ -785,7 +784,6 @@ impl Conversation {
             .clone()
             .provider(llm_gateway::api::Provider::AzureOpenAi)
             .model(Some("gpt-4-32k".to_string()))
-            .max_tokens(Some(1000))
             .chat(&messages)
             .await?
             .boxed();
@@ -921,7 +919,7 @@ impl Conversation {
     }
 
     fn trimmed_history(&self) -> Result<Vec<llm_gateway::api::Message>> {
-        const HEADROOM: usize = 8092;
+        const HEADROOM: usize = 4096;
 
         let mut tiktoken_msgs = self
             .llm_history
@@ -933,7 +931,7 @@ impl Conversation {
             })
             .collect::<Vec<_>>();
 
-        while tiktoken_rs::get_chat_completion_max_tokens("gpt-4-32k", &tiktoken_msgs)? < HEADROOM {
+        while tiktoken_rs::get_chat_completion_max_tokens("gpt-4", &tiktoken_msgs)? < HEADROOM {
             tiktoken_msgs
                 .iter_mut()
                 .find(|m| m.role == "user" && m.content != "[HIDDEN]")
